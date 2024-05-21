@@ -5,8 +5,8 @@ using static System.Console;
 
 public class Field {
   private int _size;
-  private Dictionary<int, Crane> _cranes = new Dictionary<int, Crane>();
-  private Dictionary<int, Container> _containers = new Dictionary<int, Container>();
+  // private Dictionary<int, Crane> _cranes = new Dictionary<int, Crane>();
+  // private Dictionary<int, Container> _containers = new Dictionary<int, Container>();
   private List<List<int>> _craneMap = new List<List<int>>();
   private List<List<int>> _containerMap = new List<List<int>>();
   private List<List<int>> _ready = new List<List<int>>();
@@ -16,15 +16,15 @@ public class Field {
     _size = size;
     _ready = ready;
     
-    for(int i = 0; i < _size; i++) {
-      for(int j = 0; j < _size; j++) {
-        if(j == 0) {
-          _containers[_ready[i][j]] = new Container(_ready[i][j], i, 0);
-        } else {
-          _containers[_ready[i][j]] = new Container(_ready[i][j], -1, -1);
-        }
-      }
-    }
+    // for(int i = 0; i < _size; i++) {
+    //   for(int j = 0; j < _size; j++) {
+    //     if(j == 0) {
+    //       _containers[_ready[i][j]] = new Container(_ready[i][j], i, 0);
+    //     } else {
+    //       _containers[_ready[i][j]] = new Container(_ready[i][j], -1, -1);
+    //     }
+    //   }
+    // }
 
     for(int i = 0; i < _size; i++) {
       var tmp = new List<int>();
@@ -55,6 +55,12 @@ public class Field {
   }
 
   public void CarryOut() {
+    for(int i = 0; i < _size; i++) {
+      if(_containerMap[i][_size - 1] != -1) {
+        _done[i].Add(_containerMap[i][_size - 1]);
+        _containerMap[i][_size - 1] = -1;
+      }
+    }
   }
 
   private void SetCrane(int id, int y, int x) {
