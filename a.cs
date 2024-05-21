@@ -11,9 +11,9 @@ public class Field {
   private List<List<char>> _processes = new List<List<char>>();
   private List<List<int>> _craneMap = new List<List<int>>();
   private List<List<int>> _containerMap = new List<List<int>>();
+  private List<int> _grabbedContainer = new List<int>();
   private List<List<int>> _ready = new List<List<int>>();
   private List<List<int>> _done = new List<List<int>>();
-  private List<int> _grabbedContainer = new List<int>();
 
   public Field(int size, List<List<int>> ready) {
     _size = size;
@@ -283,20 +283,41 @@ public class Field {
     return true;
   }
 
-  // public List<int> GetValidOrder(in List<List<char>> processes, int turn) {
-  //   var order = new List<int>();
-  //   for(int i = 0; i < _size; i++) {
-  //     order.Add(i);
-  //   }
+  public bool IsValidTurn(in List<List<char>> processes, int turn) {
+    var before = new List<(int Y, int X)>();
+    var after = new List<(int Y, int X)>();
+    for(int i = 0; i < _size; i++) {
+      before.Add(GetCranePos(i));
+      after.Add(processes[i][turn] switch {
+        'P' => before[i],
+        'Q' => before[i],
+        '.' => before[i],
+        'B' => (-1, -1),
+        'U' => (before[i].Y - 1, before[i].X),
+        'D' => (before[i].Y + 1, before[i].X),
+        'L' => (before[i].Y, before[i].X - 1),
+        'R' => (before[i].Y, before[i].X + 1),
+        _ => throw new Exception("不正な入力"),
+      });
+    }
 
-  //   do {
-  //     for() {
+    for(int i = 0; i < _size; i++) {
+      if((after[i].Y == -1 || after[i].X == -1) && after[i] != (-1, -1)) {
+        return false;
+      }
 
-  //     }
-  //   } while(NextPermutation(order));
+      for(int j = i + 1; j < _size; j++) {
+        if(before[i] == after[j] && after[i] == before[j]) {
+          return false;
+        }
+        if(after[i] == after[j]) {
+          return false;
+        }
+      }
+    }
 
-  //   throw new Exception("ターンで成立する操作手順が存在しません");
-  // }
+    return true;
+  }
 
   public void Operate(List<List<char>> processes) {
     if(processes.Count != _size) {
