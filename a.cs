@@ -8,6 +8,7 @@ public class Field {
   private int _turn;
   // private Dictionary<int, Crane> _cranes = new Dictionary<int, Crane>();
   // private Dictionary<int, Container> _containers = new Dictionary<int, Container>();
+  private List<List<char>> _processes = new List<List<char>>();
   private List<List<int>> _craneMap = new List<List<int>>();
   private List<List<int>> _containerMap = new List<List<int>>();
   private List<List<int>> _ready = new List<List<int>>();
@@ -45,11 +46,13 @@ public class Field {
     for(int i = 0; i < _size; i++) {
       CarryIn(i);
       SetCrane(i, i, 0);
-    }
-
-    for(int i = 0; i < _size; i++) {
       _grabbedContainer.Add(-1);
+      _processes.Add(new List<char>());
     }
+  }
+
+  public int Size {
+    get {return _size;}
   }
 
   public int Turn {
@@ -172,7 +175,7 @@ public class Field {
       throw new Exception($"クレーン{id}がクレーン{_craneMap[ey][ex]}と衝突しました");
     }
 
-    if(id != 0 && _containerMap[ey][ex] != -1) {
+    if(id != 0 && _grabbedContainer[id] != -1 && _containerMap[ey][ex] != -1) {
       throw new Exception($"小クレーン{id}はコンテナを掴んだ状態で別のコンテナが存在するマスに移動出来ません");
     }
 
@@ -221,6 +224,80 @@ public class Field {
     _grabbedContainer[id] = -1;
   }
 
+  // private bool isCollide(in List<List<char>> processes, int turn) {
+  //   HashSet<(int Y, int X)> afterMove;
+  //   for(int i = 0; i < _size; i++) {
+  //     if(processes[i][turn] == 'B') continue;
+  //     (int cy, int cx) = GetCranePos(i);
+
+  //     int ey, ex;
+  //     switch(processes[i][turn]) {
+  //       case 'P':
+  //       case 'Q':
+  //         (ey, ex) = (cy, cx);
+  //         break;
+  //       case 'U':
+  //         (ey, ex) = (cy - 1, cx);
+  //         break;
+  //       case 'D':
+  //         (ey, ex) = (cy + 1, cx);
+  //         break;
+  //       case 'L':
+  //         (ey, ex) = (cy, cx - 1);
+  //         break;
+  //       case 'R':
+  //         (ey, ex) = (cy, cx + 1);
+  //         break;
+  //     }
+
+  //     if(afterMove.Contains((ey, ex))) {
+  //       return false;
+  //     }
+  //   }
+  //   return true;
+  // }
+
+  private bool NextPermutation(List<int> a) {
+    if(a.Count <= 1) return false;
+
+    int k = a.Count - 2;
+    while(k >= 0 && a[k] >= a[k + 1]) {
+      k--;
+    }
+
+    if(k < 0) {
+      a.Reverse();
+      return false;
+    }
+
+    int l = a.Count - 1;
+    while(l > k && a[l] <= a[k]) {
+      l--;
+    }
+
+    int tmp = a[k];
+    a[k] = a[l];
+    a[l] = tmp;
+
+    a.Reverse(k + 1, a.Count - (k + 1));
+    return true;
+  }
+
+  // public List<int> GetValidOrder(in List<List<char>> processes, int turn) {
+  //   var order = new List<int>();
+  //   for(int i = 0; i < _size; i++) {
+  //     order.Add(i);
+  //   }
+
+  //   do {
+  //     for() {
+
+  //     }
+  //   } while(NextPermutation(order));
+
+  //   throw new Exception("ターンで成立する操作手順が存在しません");
+  // }
+
   public void Operate(List<List<char>> processes) {
     if(processes.Count != _size) {
       throw new Exception("操作列の数が間違っています");
@@ -259,6 +336,21 @@ public class Field {
         }
       }
     }
+
+    for(int i = 0; i < _size; i++) {
+      _processes[i].AddRange(processes[i]);
+    }
+  }
+
+  public string GetAnswer() {
+    var tmp = new StringBuilder();
+    for(int i = 0; i < _size; i++) {
+      foreach(char c in _processes[i]) {
+        tmp.Append(c);
+      }
+      tmp.Append("\n");
+    }
+    return tmp.ToString();
   }
 
   public override string ToString() {
@@ -329,6 +421,7 @@ public class Container {
     // _y = y;
     // _x = x;
   }
+  
 
   public override string ToString() {
     var tmp = new StringBuilder();
@@ -393,6 +486,20 @@ public class Crane {
 
 public class MainClass
 {
+  public static void Init(ref Field f) {
+    var processes = new List<List<char>>();
+    for(int i = 0; i < f.Size; i++) {
+      processes.Add(new List<char>());
+    }
+    processes[0].AddRange("PRQLPRRQLLPRRRQRDD.");
+    processes[1].AddRange("PRRRQLLLPRRQLLPRQLD");
+    processes[2].AddRange("PRRRQLLLPRRQLLPRQ..");
+    processes[3].AddRange("PRRRQLLLPRRQLLPRQRU");
+    processes[4].AddRange("PRRRQLLLPRRQLLPRQB.");
+
+    f.Operate(processes);
+  }
+
   public static int Main(string[] args) {
     int n = int.Parse(ReadLine());
     var ready = new List<List<int>>();
@@ -407,26 +514,9 @@ public class MainClass
     }
 
     var f = new Field(n, ready);
-
-    var processes = new List<List<char>>();
-    for(int i = 0; i < n; i++) {
-      processes.Add(new List<char>());
-      if(i == 0) {
-        processes[i].Add('P');
-        processes[i].Add('R');
-        processes[i].Add('Q');
-        processes[i].Add('L');
-        // processes[i].Add('U');
-      } else if(i == 1) {
-        processes[i].Add('P');
-        processes[i].Add('R');
-        // processes[i].Add('.');
-        // processes[i].Add('U');
-      }
-    }
-
-    f.Operate(processes);
+    Init(ref f);
     WriteLine(f.ToString());
+    WriteLine(f.GetAnswer());
 
     return 0;
   }
