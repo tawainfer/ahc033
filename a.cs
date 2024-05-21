@@ -5,6 +5,7 @@ using static System.Console;
 
 public class Field {
   private int _size;
+  private int _turn;
   // private Dictionary<int, Crane> _cranes = new Dictionary<int, Crane>();
   // private Dictionary<int, Container> _containers = new Dictionary<int, Container>();
   private List<List<int>> _craneMap = new List<List<int>>();
@@ -12,8 +13,13 @@ public class Field {
   private List<List<int>> _ready = new List<List<int>>();
   private List<List<int>> _done = new List<List<int>>();
 
+  public int Turn {
+    get {return _turn;}
+  }
+
   public Field(int size, List<List<int>> ready) {
     _size = size;
+    _turn = 0;
     _ready = ready;
     
     // for(int i = 0; i < _size; i++) {
@@ -43,6 +49,41 @@ public class Field {
       CarryIn(i);
       SetCrane(i, i, 0);
     }
+  }
+
+  public int CountInversion(List<int> a) {
+    int res = 0;
+    for(int i = 0; i < a.Count; i++) {
+      for(int j = i + 1; j < a.Count; j++) {
+        if(a[i] > a[j]) {
+          res++;
+        }
+      }
+    }
+    return res;
+  }
+
+  public int CalcScore() {
+    int inv = 0;
+    for(int i = 0; i < _size; i++) {
+      inv += CountInversion(_done[i]);
+    }
+
+    int wrong = 0;
+    for(int i = 0; i < _size; i++) {
+      foreach(int x in _done[i]) {
+        if(x / _size != i) {
+          wrong++;
+        }
+      }
+    }
+
+    int yet = _size * _size;
+    for(int i = 0; i < _size; i++) {
+      yet -= _done[i].Count;
+    }
+
+    return _turn + (100 * inv) + (10000 * wrong) + (1000000 * yet);
   }
 
   public void CarryIn(int row) {
@@ -78,6 +119,18 @@ public class Field {
     }
 
     throw new Exception($"クレーン{id}はフィールドに存在しません");
+  }
+
+  public (int Y, int X) GetContainerPos(int id) {
+    for(int i = 0; i < _size; i++) {
+      for(int j = 0; j < _size; j++) {
+        if(_containerMap[i][j] == id) {
+          return (i, j);
+        }
+      }
+    }
+
+    throw new Exception($"コンテナ{id}はフィールドに存在しません");
   }
 
   public override string ToString() {
