@@ -12,10 +12,7 @@ public class Field {
   private List<List<int>> _containerMap = new List<List<int>>();
   private List<List<int>> _ready = new List<List<int>>();
   private List<List<int>> _done = new List<List<int>>();
-
-  public int Turn {
-    get {return _turn;}
-  }
+  private List<int> _grabbedContainer = new List<int>();
 
   public Field(int size, List<List<int>> ready) {
     _size = size;
@@ -49,6 +46,14 @@ public class Field {
       CarryIn(i);
       SetCrane(i, i, 0);
     }
+
+    for(int i = 0; i < _size; i++) {
+      _grabbedContainer.Add(-1);
+    }
+  }
+
+  public int Turn {
+    get {return _turn;}
   }
 
   public int CountInversion(List<int> a) {
@@ -122,6 +127,12 @@ public class Field {
   }
 
   public (int Y, int X) GetContainerPos(int id) {
+    // for(int i = 0; i < _size; i++) {
+    //   if(_grabbedContainer[i] == id) {
+    //     return GetCranePos(i);
+    //   }
+    // }
+
     for(int i = 0; i < _size; i++) {
       for(int j = 0; j < _size; j++) {
         if(_containerMap[i][j] == id) {
@@ -131,6 +142,123 @@ public class Field {
     }
 
     throw new Exception($"コンテナ{id}はフィールドに存在しません");
+  }
+
+  public void MoveCrane(int id, char direction) {
+    (int cy, int cx) = GetCranePos(id);
+    (int ey, int ex) = (cy, cx);
+    switch(direction) {
+      case 'U':
+        ey--;
+        break;
+      case 'D':
+        ey++;
+        break;
+      case 'L':
+        ex--;
+        break;
+      case 'R':
+        ex++;
+        break;
+      default:
+        throw new Exception("方向の指定方法が間違っています");
+    }
+
+    if(!(0 <= ey && ey < _size && 0 <= ex && ex < _size)) {
+      throw new Exception($"クレーン{id}が範囲外に移動しました");
+    }
+
+    if(_craneMap[ey][ex] != -1) {
+      throw new Exception($"クレーン{id}がクレーン{_craneMap[ey][ex]}と衝突しました");
+    }
+
+    if(id != 0 && _containerMap[ey][ex] != -1) {
+      throw new Exception($"小クレーン{id}はコンテナを掴んだ状態で別のコンテナが存在するマスに移動出来ません");
+    }
+
+    _craneMap[ey][ex] = id;
+    _craneMap[cy][cx] = -1;
+
+    if(cx == 0 && _grabbedContainer[id] != -1 && _ready[cy].Count >= 1) {
+      CarryIn(cy);
+    }
+  }
+
+  public void Ban(int id) {
+    if(_grabbedContainer[id] != -1) {
+      throw new Exception($"コンテナを掴んだ状態でクレーン{id}は爆破出来ません");
+    }
+
+    (int y, int x) = GetCranePos(id);
+    _craneMap[y][x] = -1;
+  }
+
+  public void Grab(int id) {
+    if(_grabbedContainer[id] != -1) {
+      throw new Exception($"既にクレーン{id}はコンテナ{_grabbedContainer[id]}を掴んでいます");
+    }
+
+    (int y, int x) = GetCranePos(id);
+    if(_containerMap[y][x] == -1) {
+      throw new Exception($"クレーン{id}が現在いるマスにコンテナが存在しません");
+    }
+
+    _grabbedContainer[id] = _containerMap[y][x];
+    _containerMap[y][x] = -1;
+  }
+
+  public void Drop(int id) {
+    if(_grabbedContainer[id] == -1) {
+      throw new Exception($"掴んでいるコンテナがないためクレーン{id}に対して操作を行えません");
+    }
+
+    (int y, int x) = GetCranePos(id);
+    if(_containerMap[y][x] != -1) {
+      throw new Exception($"クレーン{id}の現在いるマスに別のコンテナが既に存在するためコンテナを置けません");
+    }
+
+    _containerMap[y][x] = _grabbedContainer[id];
+    _grabbedContainer[id] = -1;
+  }
+
+  public void Operate(List<List<char>> processes) {
+    if(processes.Count != _size) {
+      throw new Exception("操作列の数が間違っています");
+    }
+
+    int maxTurn = 0;
+    for(int i = 0; i < _size; i++) {
+      if(processes[i].Count > maxTurn) {
+        maxTurn = processes[i].Count;
+      }
+    }
+    for(int i = 0; i < _size; i++) {
+      while(processes[i].Count < maxTurn) {
+        processes[i].Add('.');
+      }
+    }
+
+    for(int t = 0; t < maxTurn; t++) {
+      for(int c = 0; c < _size; c++) {
+        switch(processes[c][t]) {
+          case 'P':
+            Grab(c);
+            break;
+          case 'Q':
+            Drop(c);
+            break;
+          case 'U':
+          case 'D':
+          case 'L':
+          case 'R':
+            MoveCrane(c, processes[c][t]);
+            break;
+          case 'B':
+            Ban(c);
+            break;
+        }
+      }
+    }
   }
 
   public override string ToString() {
@@ -152,7 +280,7 @@ public class Field {
     tmp.Append($"マップ(クレーン、コンテナ)\n");
     for(int i = 0; i < _craneMap.Count; i++) {
       for(int j = 0; j < _craneMap[i].Count; j++) {
-        tmp.Append($"({_craneMap[i][j]},{_containerMap[i][j]})".PadLeft(8));
+        tmp.Append($"(({_craneMap[i][j]},{(_craneMap[i][j] != -1 ? _grabbedContainer[_craneMap[i][j]] : -1)}){_containerMap[i][j]})".PadLeft(12));
       }
       tmp.Append("\n");
     }
@@ -265,7 +393,7 @@ public class Crane {
 
 public class MainClass
 {
-  public MainClass() {
+  public static int Main(string[] args) {
     int n = int.Parse(ReadLine());
     var ready = new List<List<int>>();
 
@@ -279,11 +407,27 @@ public class MainClass
     }
 
     var f = new Field(n, ready);
-    WriteLine(f.ToString());
-  }
 
-  public static int Main(string[] args) {
-    new MainClass();
+    var processes = new List<List<char>>();
+    for(int i = 0; i < n; i++) {
+      processes.Add(new List<char>());
+      if(i == 0) {
+        processes[i].Add('P');
+        processes[i].Add('R');
+        processes[i].Add('Q');
+        processes[i].Add('L');
+        // processes[i].Add('U');
+      } else if(i == 1) {
+        processes[i].Add('P');
+        processes[i].Add('R');
+        // processes[i].Add('.');
+        // processes[i].Add('U');
+      }
+    }
+
+    f.Operate(processes);
+    WriteLine(f.ToString());
+
     return 0;
   }
 }
