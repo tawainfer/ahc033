@@ -103,6 +103,37 @@ public class Field {
     }
   }
 
+  public (int Ready, int Field, int Done, int All) GetContainerCount() {
+    int field = 0;
+    for(int i = 0; i < _size * _size; i++) {
+      try {
+        GetCranePos(i);
+        field++;
+      } catch(Exception) {
+        // pass
+      }
+    }
+
+    int ready = 0;
+    for(int i = 0; i < _ready.Count; i++) {
+      foreach(int x in _ready[i]) {
+        ready++;
+      }
+    }
+
+    int done = _size * _size - ready - field;
+    return (ready, field, done, _size * _size);
+  }
+
+  public int GetNextCarryOutContainer(int row) {
+    if(!(0 <= row && row < _size)) {
+      throw new Exception("範囲外の行を指定しています");
+    }
+
+    int next = row * _size + _done[row].Count;
+    return (_done[row].Count == _size ? -1 : next);
+  }
+
   private void SetCrane(int id, int y, int x) {
     if(!(0 <= y && y < _size && 0 <= x && x < _size)) throw new Exception("範囲外");
     _craneMap[y][x] = id;
@@ -347,7 +378,12 @@ public class Field {
       for(int i = 0; i < _size; i++) {
         _processes[i].Add(processes[i][t]);
       }
+      WriteLine(CalcScore()); // debug
     }
+  }
+
+  public int CalcDistance((int Y, int X) p1, (int Y, int X) p2) {
+    return Math.Abs(p1.Y - p2.Y) + Math.Abs(p1.X - p2.X);
   }
 
   public int CalcScore() {
@@ -446,8 +482,55 @@ public class MainClass
     f.Operate(processes);
   }
 
-  public static void Tidy() {
-    
+  public static void Tidy(ref Field f) {
+    while(f.GetContainerCount().Done < f.GetContainerCount().All) {
+      int target = -1;
+      int min_distance = int.MaxValue;
+
+      for(int i = 0; i < f.Size; i++) {
+        int t = f.GetNextCarryOutContainer(i);
+        if(t == -1) continue;
+
+        try {f.GetContainerPos(t);}
+        catch {continue;}
+
+        int d = f.CalcDistance(f.GetCranePos(0), f.GetContainerPos(t)) + f.CalcDistance(f.GetContainerPos(t), (t / f.Size, f.Size - 1));
+        if(d < min_distance) {
+          target = t;
+          min_distance = d;
+        }
+      }
+
+      if(target == -1) {
+        throw new Exception("ターゲットとなるコンテナが見つかりませんでした");
+      }
+
+      var processes = new List<List<char>>();
+      for(int i = 0; i < f.Size; i++) {
+        processes.Add(new List<char>());
+      }
+
+      for(int i = 0; i < Math.Abs(f.GetCranePos(0).Y - f.GetContainerPos(target).Y); i++) {
+        processes[0].Add((f.GetCranePos(0).Y >= f.GetContainerPos(target).Y) ? 'U' : 'D');
+      }
+      for(int i = 0; i < Math.Abs(f.GetCranePos(0).X - f.GetContainerPos(target).X); i++) {
+        processes[0].Add((f.GetCranePos(0).X >= f.GetContainerPos(target).X) ? 'L' : 'R');
+      }
+
+      processes[0].Add('P');
+
+      for(int i = 0; i < Math.Abs(f.GetContainerPos(target).X - (f.Size - 1)); i++) {
+        processes[0].Add((f.GetContainerPos(target).X >= (f.Size - 1)) ? 'L' : 'R');
+      }
+      for(int i = 0; i < Math.Abs(f.GetContainerPos(target).Y - (target / f.Size)); i++) {
+        processes[0].Add((f.GetContainerPos(target).Y >= (target / f.Size)) ? 'U' : 'D');
+      }
+
+      processes[0].Add('Q');
+
+      f.Operate(processes);
+      break; // debug
+    }
   }
 
   public static int Main(string[] args) {
@@ -457,6 +540,7 @@ public class MainClass
 
     var f = new Field(n, a);
     Pack(ref f);
+    Tidy(ref f);
     WriteLine(f.GetAnswer());
 
     return 0;
