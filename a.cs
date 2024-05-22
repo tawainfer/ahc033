@@ -73,7 +73,7 @@ public class Field {
     }
   }
 
-  public int CountInversion(List<int> a) {
+  private int CountInversion(List<int> a) {
     int res = 0;
     for(int i = 0; i < a.Count; i++) {
       for(int j = i + 1; j < a.Count; j++) {
@@ -85,30 +85,7 @@ public class Field {
     return res;
   }
 
-  public int CalcScore() {
-    int inv = 0;
-    for(int i = 0; i < _size; i++) {
-      inv += CountInversion(_done[i]);
-    }
-
-    int wrong = 0;
-    for(int i = 0; i < _size; i++) {
-      foreach(int x in _done[i]) {
-        if(x / _size != i) {
-          wrong++;
-        }
-      }
-    }
-
-    int yet = _size * _size;
-    for(int i = 0; i < _size; i++) {
-      yet -= _done[i].Count;
-    }
-
-    return Turn + (100 * inv) + (10000 * wrong) + (1000000 * yet);
-  }
-
-  public void CarryIn(int row) {
+  private void CarryIn(int row) {
     if(!(0 <= row && row < _size)) throw new Exception("範囲外の行");
     if(_ready[row].Count == 0) throw new Exception($"待機列{row}にコンテナがありません");
     if(_containerMap[row][0] != -1) throw new Exception($"搬入口({row},{0})に別のコンテナが存在します");
@@ -117,7 +94,7 @@ public class Field {
     _ready[row].RemoveAt(0);
   }
 
-  public void CarryOut() {
+  private void CarryOut() {
     for(int i = 0; i < _size; i++) {
       if(_containerMap[i][_size - 1] != -1) {
         _done[i].Add(_containerMap[i][_size - 1]);
@@ -234,39 +211,6 @@ public class Field {
     afterGrabbedContainer[id] = -1;
   }
 
-  // private bool isCollide(in List<List<char>> processes, int turn) {
-  //   HashSet<(int Y, int X)> afterMove;
-  //   for(int i = 0; i < _size; i++) {
-  //     if(processes[i][turn] == 'B') continue;
-  //     (int cy, int cx) = GetCranePos(i);
-
-  //     int ey, ex;
-  //     switch(processes[i][turn]) {
-  //       case 'P':
-  //       case 'Q':
-  //         (ey, ex) = (cy, cx);
-  //         break;
-  //       case 'U':
-  //         (ey, ex) = (cy - 1, cx);
-  //         break;
-  //       case 'D':
-  //         (ey, ex) = (cy + 1, cx);
-  //         break;
-  //       case 'L':
-  //         (ey, ex) = (cy, cx - 1);
-  //         break;
-  //       case 'R':
-  //         (ey, ex) = (cy, cx + 1);
-  //         break;
-  //     }
-
-  //     if(afterMove.Contains((ey, ex))) {
-  //       return false;
-  //     }
-  //   }
-  //   return true;
-  // }
-
   private bool NextPermutation(List<int> a) {
     if(a.Count <= 1) return false;
 
@@ -293,7 +237,7 @@ public class Field {
     return true;
   }
 
-  public bool IsValidTurn(in List<List<char>> processes, int turn) {
+  private bool IsValidTurn(in List<List<char>> processes, int turn) {
     var before = new List<(int Y, int X)>();
     var after = new List<(int Y, int X)>();
     for(int i = 0; i < _size; i++) {
@@ -406,6 +350,29 @@ public class Field {
     }
   }
 
+  public int CalcScore() {
+    int inv = 0;
+    for(int i = 0; i < _size; i++) {
+      inv += CountInversion(_done[i]);
+    }
+
+    int wrong = 0;
+    for(int i = 0; i < _size; i++) {
+      foreach(int x in _done[i]) {
+        if(x / _size != i) {
+          wrong++;
+        }
+      }
+    }
+
+    int yet = _size * _size;
+    for(int i = 0; i < _size; i++) {
+      yet -= _done[i].Count;
+    }
+
+    return Turn + (100 * inv) + (10000 * wrong) + (1000000 * yet);
+  }
+
   public string GetAnswer() {
     var tmp = new StringBuilder();
     for(int i = 0; i < _size; i++) {
@@ -465,7 +432,7 @@ public class MainClass
     }
   }
 
-  public static void Init(ref Field f) {
+  public static void Pack(ref Field f) {
     var processes = new List<List<char>>();
     for(int i = 0; i < f.Size; i++) {
       processes.Add(new List<char>());
@@ -479,13 +446,17 @@ public class MainClass
     f.Operate(processes);
   }
 
+  public static void Tidy() {
+    
+  }
+
   public static int Main(string[] args) {
     int n = -1;
     var a = new List<List<int>>();
     Input(ref n, ref a);
 
     var f = new Field(n, a);
-    Init(ref f);
+    Pack(ref f);
     WriteLine(f.GetAnswer());
 
     return 0;
