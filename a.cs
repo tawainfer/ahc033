@@ -1,29 +1,18 @@
 using System;
 using System.Text;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using static System.Console;
 
-public static class Deep
-{
-  public static T Copy(T target) {
-    T res;
-    BinaryFormatter b = new BinaryFormatter();
-    MemoryStream mem = new MemoryStream();
-    try {
-      b.Serialize(mem, target);
-      mem.Position = 0;
-      res = (T)b.Deserialize(mem);
-    }
-    finally {
-      mem.Close();
-    }
-    return res;
+public static class DeepCopy {
+  public static T Clone<T>(T obj) {
+    string json = JsonConvert.SerializeObject(obj);
+    return JsonConvert.DeserializeObject<T>(json);
   }
 }
 
 public class Field {
   private int _size;
-  private int _turn;
   // private Dictionary<int, Crane> _cranes = new Dictionary<int, Crane>();
   // private Dictionary<int, Container> _containers = new Dictionary<int, Container>();
   private List<List<char>> _processes = new List<List<char>>();
@@ -35,7 +24,6 @@ public class Field {
 
   public Field(int size, List<List<int>> ready) {
     _size = size;
-    _turn = 0;
     _ready = ready;
     
     // for(int i = 0; i < _size; i++) {
@@ -74,7 +62,15 @@ public class Field {
   }
 
   public int Turn {
-    get {return _turn;}
+    get {
+      int maxTurn = 0;
+      for(int i = 0; i < _size; i++) {
+        if(_processes[i].Count > maxTurn) {
+          maxTurn = _processes[i].Count;
+        }
+      }
+      return maxTurn;
+    }
   }
 
   public int CountInversion(List<int> a) {
@@ -109,7 +105,7 @@ public class Field {
       yet -= _done[i].Count;
     }
 
-    return _turn + (100 * inv) + (10000 * wrong) + (1000000 * yet);
+    return Turn + (100 * inv) + (10000 * wrong) + (1000000 * yet);
   }
 
   public void CarryIn(int row) {
@@ -301,6 +297,13 @@ public class Field {
     var before = new List<(int Y, int X)>();
     var after = new List<(int Y, int X)>();
     for(int i = 0; i < _size; i++) {
+      try {
+        GetCranePos(i);
+      } catch(Exception) {
+        if(processes[i][turn] == '.') continue;
+        throw new Exception($"破壊済みのクレーン{i}に操作を加えることは出来ません");
+      }
+
       before.Add(GetCranePos(i));
       after.Add(processes[i][turn] switch {
         'P' => before[i],
@@ -315,13 +318,13 @@ public class Field {
       });
     }
 
-    for(int i = 0; i < _size; i++) {
+    for(int i = 0; i < before.Count; i++) {
       if((after[i].Y == -1 || after[i].X == -1) && after[i] != (-1, -1)) {
         WriteLine($"クレーン{i}が範囲外に移動しています");
         return false;
       }
 
-      for(int j = i + 1; j < _size; j++) {
+      for(int j = i + 1; j < before.Count; j++) {
         if(before[i] == after[j] && after[i] == before[j]) {
           WriteLine($"クレーン{i}とクレーン{j}の場所を同時に入れ替えることは出来ません");
           return false;
@@ -358,9 +361,9 @@ public class Field {
         throw new Exception($"ターン{t}で不正な操作が行われています");
       }
 
-      var afterCraneMap = new List<List<int>>();
-      var afterContainerMap = new List<List<int>>();
-      var afterGrabbedContainer = new List<int>();
+      var afterCraneMap = DeepCopy.Clone(_craneMap);
+      var afterContainerMap = DeepCopy.Clone(_containerMap);
+      var afterGrabbedContainer = DeepCopy.Clone(_grabbedContainer);
 
       for(int c = 0; c < _size; c++) {
         switch(processes[c][t]) {
@@ -382,22 +385,24 @@ public class Field {
         }
       }
 
-      _craneMap = afterCraneMap;
-      _containerMap = afterContainerMap;
-      _grabbedContainer = afterGrabbedContainer;
+      _craneMap = DeepCopy.Clone(afterCraneMap);
+      _containerMap = DeepCopy.Clone(afterContainerMap);
+      _grabbedContainer = DeepCopy.Clone(afterGrabbedContainer);
 
       for(int i = 0; i < _size; i++) {
         if(afterContainerMap[i][_size - 1] == -1) {
-          CarryIn(i);
+          try {
+            CarryIn(i);
+          } catch(Exception) {
+            // pass
+          }
         }
       }
       CarryOut();
 
-      WriteLine(CalcScore() + "点");
-    }
-
-    for(int i = 0; i < _size; i++) {
-      _processes[i].AddRange(processes[i]);
+      for(int i = 0; i < _size; i++) {
+        _processes[i].Add(processes[i][t]);
+      }
     }
   }
 
@@ -415,18 +420,6 @@ public class Field {
   public override string ToString() {
     var tmp = new StringBuilder();
     tmp.Append($"フィールド\n");
-
-    // tmp.Append($"クレーン一覧...[");
-    // foreach(var c in _cranes) {
-    //   tmp.Append($"{c},\n");
-    // }
-    // tmp.Append($"]\n");
-
-    // tmp.Append($"コンテナ一覧...[");
-    // foreach(var c in _containers) {
-    //   tmp.Append($"{c},\n");
-    // }
-    // tmp.Append($"]\n");
 
     tmp.Append($"マップ(クレーン、コンテナ)\n");
     for(int i = 0; i < _craneMap.Count; i++) {
@@ -458,93 +451,20 @@ public class Field {
   }
 }
 
-// public class Container {
-//   private int _id;
-//   // private int _y;
-//   // private int _x;
-
-//   public int ID {
-//     get {return _id;}
-//   }
-
-//   // public int Y {
-//   //   get {return _y;}
-//   // }
-
-//   // public int X {
-//   //   get {return _x;}
-//   // }
-
-//   public Container(int id, int y, int x) {
-//     _id = id;
-//     // _y = y;
-//     // _x = x;
-//   }
-  
-
-//   public override string ToString() {
-//     var tmp = new StringBuilder();
-//     tmp.Append($"コンテナ{_id} ");
-//     // tmp.Append($"({_y}, {_x}) ");
-//     return tmp.ToString();
-//   }
-// }
-
-// public class Crane {
-//   private static bool _instance = false;
-
-//   private int _id;
-//   // private int _y;
-//   // private int _x;
-//   private bool _isBan;
-//   private bool _isLarge;
-//   private Container _grabbedContainer;
-
-//   public int ID {
-//     get {return _id;}
-//   }
-
-//   // public int Y {
-//   //   get {return _y;}
-//   // }
-
-//   // public int X {
-//   //   get {return _x;}
-//   // }
-
-//   public bool IsBan {
-//     get {return _isBan;}
-//   }
-
-//   public bool IsLarge {
-//     get {return _isLarge;}
-//   }
-
-//   public Container GrabbedContainer {
-//     get {return _grabbedContainer;}
-//   }
-
-//   public Crane(int id, int y, int x) {
-//     _id = id;
-//     // _y = y;
-//     // _x = x;
-//     _isBan = false;
-//     _isLarge = !(_instance);
-//     _instance = true;
-//   }
-
-//   public override string ToString() {
-//     var tmp = new StringBuilder();
-//     tmp.Append($"{(_isLarge ? "大" : "小")}クレーン{_id} ");
-//     // tmp.Append($"({_y}, {_x}) ");
-//     tmp.Append($"{(_isBan ? "破壊済み" : "使用可能")} ");
-//     tmp.Append($"掴んでいるコンテナ...{(_grabbedContainer is null ? "なし" : _grabbedContainer.ID.ToString())}");
-//     return tmp.ToString();
-//   }
-// }
-
 public class MainClass
 {
+  public static void Input(ref int n, ref List<List<int>> a) {
+    n = int.Parse(ReadLine());
+    for(int i = 0; i < n; i++) {
+      int[] tmp = ReadLine().Split().Select(int.Parse).ToArray();
+      var tmp2 = new List<int>();
+      foreach(int x in tmp) {
+        tmp2.Add(x);
+      }
+      a.Add(tmp2);
+    }
+  }
+
   public static void Init(ref Field f) {
     var processes = new List<List<char>>();
     for(int i = 0; i < f.Size; i++) {
@@ -560,21 +480,12 @@ public class MainClass
   }
 
   public static int Main(string[] args) {
-    int n = int.Parse(ReadLine());
-    var ready = new List<List<int>>();
+    int n = -1;
+    var a = new List<List<int>>();
+    Input(ref n, ref a);
 
-    for(int i = 0; i < n; i++) {
-      int[] a = ReadLine().Split().Select(int.Parse).ToArray();
-      var tmp = new List<int>();
-      foreach(int x in a) {
-        tmp.Add(x);
-      }
-      ready.Add(tmp);
-    }
-
-    var f = new Field(n, ready);
+    var f = new Field(n, a);
     Init(ref f);
-    WriteLine(f.ToString());
     WriteLine(f.GetAnswer());
 
     return 0;
