@@ -3,6 +3,24 @@ using System.Text;
 using System.Collections.Generic;
 using static System.Console;
 
+public static class Deep
+{
+  public static T Copy(T target) {
+    T res;
+    BinaryFormatter b = new BinaryFormatter();
+    MemoryStream mem = new MemoryStream();
+    try {
+      b.Serialize(mem, target);
+      mem.Position = 0;
+      res = (T)b.Deserialize(mem);
+    }
+    finally {
+      mem.Close();
+    }
+    return res;
+  }
+}
+
 public class Field {
   private int _size;
   private int _turn;
@@ -147,70 +165,66 @@ public class Field {
     throw new Exception($"コンテナ{id}はフィールドに存在しません");
   }
 
-  public void MoveCrane(int id, char direction) {
+  private void MoveCrane(int id, char direction, ref List<List<int>> afterCraneMap) {
     (int cy, int cx) = GetCranePos(id);
-    (int ey, int ex) = (cy, cx);
-    switch(direction) {
-      case 'U':
-        ey--;
-        break;
-      case 'D':
-        ey++;
-        break;
-      case 'L':
-        ex--;
-        break;
-      case 'R':
-        ex++;
-        break;
-      default:
-        throw new Exception("方向の指定方法が間違っています");
-    }
+    (int ey, int ex) = direction switch {
+      'U' => (cy - 1, cx),
+      'D' => (cy + 1, cx),
+      'L' => (cy, cx - 1),
+      'R' => (cy, cx + 1),
+      _ => throw new Exception("方向の指定方法が間違っています"),
+    };
 
     if(!(0 <= ey && ey < _size && 0 <= ex && ex < _size)) {
       throw new Exception($"クレーン{id}が範囲外に移動しました");
     }
 
-    if(_craneMap[ey][ex] != -1) {
-      throw new Exception($"クレーン{id}がクレーン{_craneMap[ey][ex]}と衝突しました");
-    }
+    // if(_craneMap[ey][ex] != -1) {
+    //   throw new Exception($"クレーン{id}がクレーン{_craneMap[ey][ex]}と衝突しました");
+    // }
 
     if(id != 0 && _grabbedContainer[id] != -1 && _containerMap[ey][ex] != -1) {
       throw new Exception($"小クレーン{id}はコンテナを掴んだ状態で別のコンテナが存在するマスに移動出来ません");
     }
 
-    _craneMap[ey][ex] = id;
-    _craneMap[cy][cx] = -1;
+    afterCraneMap[ey][ex] = id;
+    afterCraneMap[cy][cx] = -1;
 
-    if(cx == 0 && _grabbedContainer[id] != -1 && _ready[cy].Count >= 1) {
-      CarryIn(cy);
-    }
+    // if(cx == 0 && _grabbedContainer[id] != -1 && _ready[cy].Count >= 1) {
+    //   CarryIn(cy);
+    // }
   }
 
-  public void Ban(int id) {
+  private void Ban(int id, ref List<List<int>> afterCraneMap) {
     if(_grabbedContainer[id] != -1) {
       throw new Exception($"コンテナを掴んだ状態でクレーン{id}は爆破出来ません");
     }
 
     (int y, int x) = GetCranePos(id);
-    _craneMap[y][x] = -1;
+    afterCraneMap[y][x] = -1;
   }
 
-  public void Grab(int id) {
+  private void Grab(int id, ref List<List<int>> afterContainerMap, ref List<int> afterGrabbedContainer) {
     if(_grabbedContainer[id] != -1) {
       throw new Exception($"既にクレーン{id}はコンテナ{_grabbedContainer[id]}を掴んでいます");
     }
 
     (int y, int x) = GetCranePos(id);
-    if(_containerMap[y][x] == -1) {
-      throw new Exception($"クレーン{id}が現在いるマスにコンテナが存在しません");
+    if(!(0 <= y && y < _size && 0 <= x && x < _size)) {
+      throw new Exception($"クレーン{id}の位置が({y},{x})のように不正です");
     }
 
-    _grabbedContainer[id] = _containerMap[y][x];
-    _containerMap[y][x] = -1;
+    // WriteLine(_containerMap[y][x]);
+    // throw new Exception($"!{_containerMap[y][x]}!");
+    // if(_containerMap[y][x] == -1) {
+    //   throw new Exception($"クレーン{id}が現在いるマスにコンテナが存在しません");
+    // }
+
+    afterGrabbedContainer[id] = _containerMap[y][x];
+    afterContainerMap[y][x] = -1;
   }
 
-  public void Drop(int id) {
+  private void Drop(int id, ref List<List<int>> afterContainerMap, ref List<int> afterGrabbedContainer) {
     if(_grabbedContainer[id] == -1) {
       throw new Exception($"掴んでいるコンテナがないためクレーン{id}に対して操作を行えません");
     }
@@ -220,8 +234,8 @@ public class Field {
       throw new Exception($"クレーン{id}の現在いるマスに別のコンテナが既に存在するためコンテナを置けません");
     }
 
-    _containerMap[y][x] = _grabbedContainer[id];
-    _grabbedContainer[id] = -1;
+    afterContainerMap[y][x] = _grabbedContainer[id];
+    afterGrabbedContainer[id] = -1;
   }
 
   // private bool isCollide(in List<List<char>> processes, int turn) {
@@ -303,14 +317,17 @@ public class Field {
 
     for(int i = 0; i < _size; i++) {
       if((after[i].Y == -1 || after[i].X == -1) && after[i] != (-1, -1)) {
+        WriteLine($"クレーン{i}が範囲外に移動しています");
         return false;
       }
 
       for(int j = i + 1; j < _size; j++) {
         if(before[i] == after[j] && after[i] == before[j]) {
+          WriteLine($"クレーン{i}とクレーン{j}の場所を同時に入れ替えることは出来ません");
           return false;
         }
         if(after[i] == after[j]) {
+          WriteLine($"クレーン{i}とクレーン{j}が衝突しています");
           return false;
         }
       }
@@ -337,25 +354,46 @@ public class Field {
     }
 
     for(int t = 0; t < maxTurn; t++) {
+      if(!IsValidTurn(processes, t)) {
+        throw new Exception($"ターン{t}で不正な操作が行われています");
+      }
+
+      var afterCraneMap = new List<List<int>>();
+      var afterContainerMap = new List<List<int>>();
+      var afterGrabbedContainer = new List<int>();
+
       for(int c = 0; c < _size; c++) {
         switch(processes[c][t]) {
           case 'P':
-            Grab(c);
+            Grab(c, ref afterContainerMap, ref afterGrabbedContainer);
             break;
           case 'Q':
-            Drop(c);
+            Drop(c, ref afterContainerMap, ref afterGrabbedContainer);
             break;
           case 'U':
           case 'D':
           case 'L':
           case 'R':
-            MoveCrane(c, processes[c][t]);
+            MoveCrane(c, processes[c][t], ref afterCraneMap);
             break;
           case 'B':
-            Ban(c);
+            Ban(c, ref afterCraneMap);
             break;
         }
       }
+
+      _craneMap = afterCraneMap;
+      _containerMap = afterContainerMap;
+      _grabbedContainer = afterGrabbedContainer;
+
+      for(int i = 0; i < _size; i++) {
+        if(afterContainerMap[i][_size - 1] == -1) {
+          CarryIn(i);
+        }
+      }
+      CarryOut();
+
+      WriteLine(CalcScore() + "点");
     }
 
     for(int i = 0; i < _size; i++) {
@@ -420,90 +458,90 @@ public class Field {
   }
 }
 
-public class Container {
-  private int _id;
-  // private int _y;
-  // private int _x;
+// public class Container {
+//   private int _id;
+//   // private int _y;
+//   // private int _x;
 
-  public int ID {
-    get {return _id;}
-  }
+//   public int ID {
+//     get {return _id;}
+//   }
 
-  // public int Y {
-  //   get {return _y;}
-  // }
+//   // public int Y {
+//   //   get {return _y;}
+//   // }
 
-  // public int X {
-  //   get {return _x;}
-  // }
+//   // public int X {
+//   //   get {return _x;}
+//   // }
 
-  public Container(int id, int y, int x) {
-    _id = id;
-    // _y = y;
-    // _x = x;
-  }
+//   public Container(int id, int y, int x) {
+//     _id = id;
+//     // _y = y;
+//     // _x = x;
+//   }
   
 
-  public override string ToString() {
-    var tmp = new StringBuilder();
-    tmp.Append($"コンテナ{_id} ");
-    // tmp.Append($"({_y}, {_x}) ");
-    return tmp.ToString();
-  }
-}
+//   public override string ToString() {
+//     var tmp = new StringBuilder();
+//     tmp.Append($"コンテナ{_id} ");
+//     // tmp.Append($"({_y}, {_x}) ");
+//     return tmp.ToString();
+//   }
+// }
 
-public class Crane {
-  private static bool _instance = false;
+// public class Crane {
+//   private static bool _instance = false;
 
-  private int _id;
-  // private int _y;
-  // private int _x;
-  private bool _isBan;
-  private bool _isLarge;
-  private Container _grabbedContainer;
+//   private int _id;
+//   // private int _y;
+//   // private int _x;
+//   private bool _isBan;
+//   private bool _isLarge;
+//   private Container _grabbedContainer;
 
-  public int ID {
-    get {return _id;}
-  }
+//   public int ID {
+//     get {return _id;}
+//   }
 
-  // public int Y {
-  //   get {return _y;}
-  // }
+//   // public int Y {
+//   //   get {return _y;}
+//   // }
 
-  // public int X {
-  //   get {return _x;}
-  // }
+//   // public int X {
+//   //   get {return _x;}
+//   // }
 
-  public bool IsBan {
-    get {return _isBan;}
-  }
+//   public bool IsBan {
+//     get {return _isBan;}
+//   }
 
-  public bool IsLarge {
-    get {return _isLarge;}
-  }
+//   public bool IsLarge {
+//     get {return _isLarge;}
+//   }
 
-  public Container GrabbedContainer {
-    get {return _grabbedContainer;}
-  }
+//   public Container GrabbedContainer {
+//     get {return _grabbedContainer;}
+//   }
 
-  public Crane(int id, int y, int x) {
-    _id = id;
-    // _y = y;
-    // _x = x;
-    _isBan = false;
-    _isLarge = !(_instance);
-    _instance = true;
-  }
+//   public Crane(int id, int y, int x) {
+//     _id = id;
+//     // _y = y;
+//     // _x = x;
+//     _isBan = false;
+//     _isLarge = !(_instance);
+//     _instance = true;
+//   }
 
-  public override string ToString() {
-    var tmp = new StringBuilder();
-    tmp.Append($"{(_isLarge ? "大" : "小")}クレーン{_id} ");
-    // tmp.Append($"({_y}, {_x}) ");
-    tmp.Append($"{(_isBan ? "破壊済み" : "使用可能")} ");
-    tmp.Append($"掴んでいるコンテナ...{(_grabbedContainer is null ? "なし" : _grabbedContainer.ID.ToString())}");
-    return tmp.ToString();
-  }
-}
+//   public override string ToString() {
+//     var tmp = new StringBuilder();
+//     tmp.Append($"{(_isLarge ? "大" : "小")}クレーン{_id} ");
+//     // tmp.Append($"({_y}, {_x}) ");
+//     tmp.Append($"{(_isBan ? "破壊済み" : "使用可能")} ");
+//     tmp.Append($"掴んでいるコンテナ...{(_grabbedContainer is null ? "なし" : _grabbedContainer.ID.ToString())}");
+//     return tmp.ToString();
+//   }
+// }
 
 public class MainClass
 {
