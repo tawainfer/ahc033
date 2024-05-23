@@ -139,6 +139,16 @@ public class Field {
     _craneMap[y][x] = id;
   }
 
+  public int GetCraneID((int Y, int X) p) {
+    if(!(0 <= p.Y && p.Y < _size && 0 <= p.X && p.X < _size)) throw new Exception($"指定した座標({p.Y},{p.X})はフィールドの範囲外です");
+    return _craneMap[p.Y][p.X];
+  }
+
+  public int GetContainerID((int Y, int X) p) {
+    if(!(0 <= p.Y && p.Y < _size && 0 <= p.X && p.X < _size)) throw new Exception($"指定した座標({p.Y},{p.X})はフィールドの範囲外です");
+    return _containerMap[p.Y][p.X];
+  }
+
   public (int Y, int X) GetCranePos(int id) {
     for(int i = 0; i < _size; i++) {
       for(int j = 0; j < _size; j++) {
@@ -169,6 +179,11 @@ public class Field {
     throw new Exception($"コンテナ{id}はフィールドに存在しません");
   }
 
+  public int GetGrabbedContainer(int id) {
+    GetCranePos(id);
+    return _grabbedContainer[id];
+  }
+
   private void MoveCrane(int id, char direction, ref List<List<int>> afterCraneMap) {
     (int cy, int cx) = GetCranePos(id);
     (int ey, int ex) = direction switch {
@@ -176,7 +191,7 @@ public class Field {
       'D' => (cy + 1, cx),
       'L' => (cy, cx - 1),
       'R' => (cy, cx + 1),
-      _ => throw new Exception("方向の指定方法が間違っています"),
+      _ => (cy, cx),
     };
 
     if(!(0 <= ey && ey < _size && 0 <= ex && ex < _size)) {
@@ -192,7 +207,14 @@ public class Field {
     }
 
     afterCraneMap[ey][ex] = id;
-    afterCraneMap[cy][cx] = -1;
+    // afterCraneMap[cy][cx] = -1;
+
+    // for(int i = 0; i < _size; i++) {
+    //   for(int j = 0; j < _size; j++) {
+    //     Write(afterCraneMap[i][j].ToString().PadLeft(3));
+    //   }
+    //   WriteLine();
+    // }
 
     // if(cx == 0 && _grabbedContainer[id] != -1 && _ready[cy].Count >= 1) {
     //   CarryIn(cy);
@@ -336,9 +358,15 @@ public class Field {
         throw new Exception($"ターン{t}で不正な操作が行われています");
       }
 
-      var afterCraneMap = DeepCopy.Clone(_craneMap);
       var afterContainerMap = DeepCopy.Clone(_containerMap);
       var afterGrabbedContainer = DeepCopy.Clone(_grabbedContainer);
+      var afterCraneMap = new List<List<int>>();
+      for(int i = 0; i < _size; i++) {
+        afterCraneMap.Add(new List<int>());
+        for(int j = 0; j < _size; j++) {
+          afterCraneMap[i].Add(-1);
+        }
+      }
 
       for(int c = 0; c < _size; c++) {
         switch(processes[c][t]) {
@@ -348,16 +376,12 @@ public class Field {
           case 'Q':
             Drop(c, ref afterContainerMap, ref afterGrabbedContainer);
             break;
-          case 'U':
-          case 'D':
-          case 'L':
-          case 'R':
-            MoveCrane(c, processes[c][t], ref afterCraneMap);
-            break;
           case 'B':
             Ban(c, ref afterCraneMap);
             break;
         }
+
+        MoveCrane(c, processes[c][t], ref afterCraneMap);
       }
 
       _craneMap = DeepCopy.Clone(afterCraneMap);
@@ -473,63 +497,136 @@ public class MainClass
     for(int i = 0; i < f.Size; i++) {
       processes.Add(new List<char>());
     }
-    processes[0].AddRange("PRQLPRRQLLPRRRQRDD.");
-    processes[1].AddRange("PRRRQLLLPRRQLLPRQLD");
-    processes[2].AddRange("PRRRQLLLPRRQLLPRQ..");
-    processes[3].AddRange("PRRRQLLLPRRQLLPRQRU");
-    processes[4].AddRange("PRRRQLLLPRRQLLPRQB.");
+    processes[0].AddRange("PRQLPRRQLLPRRRQRDD");
+    processes[1].AddRange("PRRRQLLLPRRQLLPRQD");
+    processes[2].AddRange("PRRRQLLLPRRQLLPRQR");
+    processes[3].AddRange("PRRRQLLLPRRQLLPRQR");
+    processes[4].AddRange("PRRRQLLLPRRQLLPRQU");
 
     f.Operate(processes);
   }
 
+  // public static void Tidy(ref Field f) {
+  //   while(f.GetContainerCount().Done < f.GetContainerCount().All) {
+  //     int target = -1;
+  //     int min_distance = int.MaxValue;
+
+  //     for(int i = 0; i < f.Size; i++) {
+  //       int t = f.GetNextCarryOutContainer(i);
+  //       if(t == -1) continue;
+
+  //       try {f.GetContainerPos(t);}
+  //       catch {continue;}
+
+  //       int d = f.CalcDistance(f.GetCranePos(0), f.GetContainerPos(t)) + f.CalcDistance(f.GetContainerPos(t), (t / f.Size, f.Size - 1));
+  //       if(d < min_distance) {
+  //         target = t;
+  //         min_distance = d;
+  //       }
+  //     }
+
+  //     if(target == -1) {
+  //       throw new Exception("ターゲットとなるコンテナが見つかりませんでした");
+  //     }
+
+  //     var processes = new List<List<char>>();
+  //     for(int i = 0; i < f.Size; i++) {
+  //       processes.Add(new List<char>());
+  //     }
+
+  //     for(int i = 0; i < Math.Abs(f.GetCranePos(0).Y - f.GetContainerPos(target).Y); i++) {
+  //       processes[0].Add((f.GetCranePos(0).Y >= f.GetContainerPos(target).Y) ? 'U' : 'D');
+  //     }
+  //     for(int i = 0; i < Math.Abs(f.GetCranePos(0).X - f.GetContainerPos(target).X); i++) {
+  //       processes[0].Add((f.GetCranePos(0).X >= f.GetContainerPos(target).X) ? 'L' : 'R');
+  //     }
+
+  //     processes[0].Add('P');
+
+  //     for(int i = 0; i < Math.Abs(f.GetContainerPos(target).X - (f.Size - 1)); i++) {
+  //       processes[0].Add((f.GetContainerPos(target).X >= (f.Size - 1)) ? 'L' : 'R');
+  //     }
+  //     for(int i = 0; i < Math.Abs(f.GetContainerPos(target).Y - (target / f.Size)); i++) {
+  //       processes[0].Add((f.GetContainerPos(target).Y >= (target / f.Size)) ? 'U' : 'D');
+  //     }
+
+  //     processes[0].Add('Q');
+
+  //     f.Operate(processes);
+  //     break; // debug
+  //   }
+  // }
+
   public static void Tidy(ref Field f) {
+    int cnt = 0; // debug
     while(f.GetContainerCount().Done < f.GetContainerCount().All) {
-      int target = -1;
-      int min_distance = int.MaxValue;
-
-      for(int i = 0; i < f.Size; i++) {
-        int t = f.GetNextCarryOutContainer(i);
-        if(t == -1) continue;
-
-        try {f.GetContainerPos(t);}
-        catch {continue;}
-
-        int d = f.CalcDistance(f.GetCranePos(0), f.GetContainerPos(t)) + f.CalcDistance(f.GetContainerPos(t), (t / f.Size, f.Size - 1));
-        if(d < min_distance) {
-          target = t;
-          min_distance = d;
-        }
-      }
-
-      if(target == -1) {
-        throw new Exception("ターゲットとなるコンテナが見つかりませんでした");
-      }
-
+      cnt++; // debug
       var processes = new List<List<char>>();
       for(int i = 0; i < f.Size; i++) {
         processes.Add(new List<char>());
       }
 
-      for(int i = 0; i < Math.Abs(f.GetCranePos(0).Y - f.GetContainerPos(target).Y); i++) {
-        processes[0].Add((f.GetCranePos(0).Y >= f.GetContainerPos(target).Y) ? 'U' : 'D');
+      var targets = new HashSet<int>();
+      for(int j = 0; j < f.Size; j++) {
+        targets.Add(f.GetNextCarryOutContainer(j));
       }
-      for(int i = 0; i < Math.Abs(f.GetCranePos(0).X - f.GetContainerPos(target).X); i++) {
-        processes[0].Add((f.GetCranePos(0).X >= f.GetContainerPos(target).X) ? 'L' : 'R');
-      }
+      if(targets.Contains(-1)) targets.Remove(-1);
 
-      processes[0].Add('P');
+      for(int i = 0; i < f.Size; i++) {
+        (int cy, int cx) = f.GetCranePos(i);
+        if(i == 0) {
+          if(f.GetGrabbedContainer(0) != -1) {
+            if(cx == f.Size - 1) {
+              if(cy == f.GetGrabbedContainer(0) / f.Size) {
+                processes[0].Add('Q');
+              } else {
+                processes[0].Add((cy >= f.GetGrabbedContainer(0) / f.Size ? 'U' : 'L'));
+              }
+            } else if(cx == f.Size - 2) {
+              processes[0].Add('R');
+            } else {
+              throw new Exception("クレーン0が想定外の動作をしています");
+            }
+          } else if(cx == f.Size - 1) {
+            if(targets.Contains(f.GetContainerID((cy, cx - 1)))) {
+              processes[0].Add('L');
+            } else {
+              bool isTarget = false;
+              for(int j = 1; j <= 4; j++) {
+                try {
+                  if(targets.Contains(f.GetContainerID((cy - j, cx - 1)))) {
+                    isTarget = true;
+                    processes[0].Add('U');
+                    break;
+                  }
+                } catch(Exception) {
+                  // pass
+                }
+                try {
+                  if(targets.Contains(f.GetContainerID((cy + j, cx - 1)))) {
+                    isTarget = true;
+                    processes[0].Add('D');
+                    break;
+                  }
+                } catch(Exception) {
+                  // pass
+                }
+              }
 
-      for(int i = 0; i < Math.Abs(f.GetContainerPos(target).X - (f.Size - 1)); i++) {
-        processes[0].Add((f.GetContainerPos(target).X >= (f.Size - 1)) ? 'L' : 'R');
+              if(!isTarget) {
+                processes[0].Add('.');
+              }
+            }
+          } else if(cx == f.Size - 2) {
+            processes[0].Add((targets.Contains(f.GetContainerID((cy, cx))) ? 'P' : 'R'));
+          }
+        } else {
+          // 回転クレーンの処理
+        }
       }
-      for(int i = 0; i < Math.Abs(f.GetContainerPos(target).Y - (target / f.Size)); i++) {
-        processes[0].Add((f.GetContainerPos(target).Y >= (target / f.Size)) ? 'U' : 'D');
-      }
-
-      processes[0].Add('Q');
 
       f.Operate(processes);
-      break; // debug
+      if(cnt >= 20) break; // debug
     }
   }
 
