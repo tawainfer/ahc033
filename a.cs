@@ -89,6 +89,7 @@ public class Field {
     if(!(0 <= row && row < _size)) throw new Exception("範囲外の行");
     if(_ready[row].Count == 0) throw new Exception($"待機列{row}にコンテナがありません");
     if(_containerMap[row][0] != -1) throw new Exception($"搬入口({row},{0})に別のコンテナが存在します");
+    if(GetCraneID((row, 0)) != -1 && GetGrabbedContainer(GetCraneID((row, 0))) != -1) throw new Exception($"搬入口({row},{0})にコンテナを持ち上げているクレーンが存在します");
 
     _containerMap[row][0] = _ready[row][0];
     _ready[row].RemoveAt(0);
@@ -202,6 +203,20 @@ public class Field {
     //   throw new Exception($"クレーン{id}がクレーン{_craneMap[ey][ex]}と衝突しました");
     // }
 
+    // debug
+    // WriteLine("_grabbedContainer");
+    // for(int i = 0; i < _size; i++) {
+    //   Write($"{_grabbedContainer[i]} ");
+    // }
+    // WriteLine();
+    // WriteLine("_containerMap");
+    // for(int i = 0; i < _size; i++) {
+    //   for(int j = 0; j < _size; j++) {
+    //     Write(_containerMap[i][j].ToString().PadLeft(3));
+    //   }
+    //   WriteLine();
+    // }
+
     if(id != 0 && _grabbedContainer[id] != -1 && _containerMap[ey][ex] != -1) {
       throw new Exception($"小クレーン{id}はコンテナを掴んだ状態で別のコンテナが存在するマスに移動出来ません");
     }
@@ -209,6 +224,7 @@ public class Field {
     afterCraneMap[ey][ex] = id;
     // afterCraneMap[cy][cx] = -1;
 
+    // debug
     // for(int i = 0; i < _size; i++) {
     //   for(int j = 0; j < _size; j++) {
     //     Write(afterCraneMap[i][j].ToString().PadLeft(3));
@@ -402,7 +418,9 @@ public class Field {
       for(int i = 0; i < _size; i++) {
         _processes[i].Add(processes[i][t]);
       }
-      WriteLine(CalcScore()); // debug
+
+      // debug
+      // WriteLine(CalcScore());
     }
   }
 
@@ -559,6 +577,7 @@ public class MainClass
         isGrabbedContainer.Add(f.GetGrabbedContainer(i) != -1);
       }
 
+      int rCount = 0;
       foreach(char c in processes[0]) {
         switch(c) {
           case 'U':
@@ -571,11 +590,11 @@ public class MainClass
             cranePos[0] = (cranePos[0].Y, cranePos[0].X - 1);
             break;
           case 'R':
+            rCount++;
             cranePos[0] = (cranePos[0].Y, cranePos[0].X + 1);
             break;
         }
 
-        int rCount = 0;
         for(int i = 1; i <= 4; i++) {
           switch(c) {
             case 'U':
@@ -587,7 +606,7 @@ public class MainClass
               cranePos[i] = (cranePos[i].Y + 1, cranePos[i].X);
               break;
             case 'P':
-              if(!isGrabbedContainer[i]) {
+              if(f.GetContainerID(cranePos[i]) != -1) {
                 processes[i].Add('P');
                 isGrabbedContainer[i] = true;
               } else {
@@ -635,18 +654,7 @@ public class MainClass
               }
               break;
             case 'R':
-              if(cranePos[0].X >= f.Size - 1) {
-                if(isGrabbedContainer[i]) {
-                  processes[i].Add('Q');
-                  isGrabbedContainer[i] = false;
-                } else {
-                  processes[i].Add('.');
-                }
-                break;
-              }
-
-              rCount++;
-              switch(processes[i][processes[i].Count - 1 - rCount]) {
+              switch(processes[i][processes[i].Count - (rCount * 2 + (rCount >= 2 ? 1 : 0))]) {
                 case 'U':
                   processes[i].Add('D');
                   cranePos[i] = (cranePos[i].Y + 1, cranePos[i].X);
@@ -664,15 +672,24 @@ public class MainClass
                   cranePos[i] = (cranePos[i].Y, cranePos[i].X - 1);
                   break;
               }
+
+              if(rCount == 1) {
+                if(isGrabbedContainer[i]) {
+                  processes[i].Add('Q');
+                  isGrabbedContainer[i] = false;
+                } else {
+                  processes[i].Add('.');
+                }
+              }
               break;
           }
         }
 
         // debug
-        for(int i = 0; i < f.Size; i++) {
-          Write($"{cranePos[i]} ");
-        }
-        WriteLine();
+        // for(int i = 0; i < f.Size; i++) {
+        //   Write($"{cranePos[i]} ");
+        // }
+        // WriteLine();
       }
 
       for(int i = 0; i < f.Size; i++) {
@@ -681,8 +698,10 @@ public class MainClass
         }
         WriteLine();
       }
+
       f.Operate(processes);
-      break; // debug
+      WriteLine(f.GetAnswer()); // debug
+      // break; // debug
     }
   }
 
@@ -766,8 +785,11 @@ public class MainClass
 
     var f = new Field(n, a);
     Pack(ref f);
-    WriteLine(f.ToString());
+    // WriteLine(f.ToString());
+    // WriteLine(f.GetAnswer());
+
     Tidy(ref f);
+    // WriteLine(f.ToString());
     WriteLine(f.GetAnswer());
 
     return 0;
