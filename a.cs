@@ -494,180 +494,180 @@ public class MainClass
       processes.Add(new List<char>());
     }
     processes[0].AddRange("PRQLPRRQLLPRRRQRDDD.");
-    processes[1].AddRange("PRRRQLLLPRRQLLPRQLDD");
-    processes[2].AddRange("PRRRQLLLPRRQLLPRQD..");
-    processes[3].AddRange("PRRRQLLLPRRQLLPRQR..");
-    processes[4].AddRange("PRRRQLLLPRRQLLPRQRRU");
+    processes[1].AddRange("PRRRQLLLPRRQLLPRQDD");
+    processes[2].AddRange("PRRRQLLLPRRQLLPRQLD");
+    processes[3].AddRange("PRRRQLLLPRRQLLPRQRR");
+    processes[4].AddRange("PRRRQLLLPRRQLLPRQUR");
 
     f.Operate(processes);
   }
 
-  public static void Tidy(ref Field f) {
-    while(f.GetContainerCount().Done < f.GetContainerCount().All) {
-      int target = -1;
-      int min_distance = int.MaxValue;
+  public static bool Tidy(ref Field f) {
+    if(f.GetContainerCount().Done >= f.GetContainerCount().All) return false;
 
-      for(int i = 0; i < f.Size; i++) {
-        int t = f.GetNextCarryOutContainer(i);
-        if(t == -1) continue;
+    int target = -1;
+    int min_distance = int.MaxValue;
 
-        try {f.GetContainerPos(t);}
-        catch {continue;}
+    for(int i = 0; i < f.Size; i++) {
+      int t = f.GetNextCarryOutContainer(i);
+      if(t == -1) continue;
 
-        int d = f.CalcDistance(f.GetCranePos(0), f.GetContainerPos(t)) + f.CalcDistance(f.GetContainerPos(t), (t / f.Size, f.Size - 1));
-        if(d < min_distance) {
-          target = t;
-          min_distance = d;
-        }
+      try {f.GetContainerPos(t);}
+      catch {continue;}
+
+      int d = f.CalcDistance(f.GetCranePos(0), f.GetContainerPos(t)) + f.CalcDistance(f.GetContainerPos(t), (t / f.Size, f.Size - 1));
+      if(d < min_distance) {
+        target = t;
+        min_distance = d;
+      }
+    }
+
+    if(target == -1) {
+      throw new Exception("ターゲットとなるコンテナが見つかりませんでした");
+    }
+
+    var processes = new List<List<char>>();
+    for(int i = 0; i < f.Size; i++) {
+      processes.Add(new List<char>());
+    }
+
+    for(int i = 0; i < Math.Abs(f.GetCranePos(0).Y - f.GetContainerPos(target).Y); i++) {
+      processes[0].Add((f.GetCranePos(0).Y >= f.GetContainerPos(target).Y) ? 'U' : 'D');
+    }
+    for(int i = 0; i < Math.Abs(f.GetCranePos(0).X - f.GetContainerPos(target).X); i++) {
+      processes[0].Add((f.GetCranePos(0).X >= f.GetContainerPos(target).X) ? 'L' : 'R');
+    }
+
+    processes[0].Add('P');
+
+    for(int i = 0; i < Math.Abs(f.GetContainerPos(target).X - (f.Size - 1)); i++) {
+      processes[0].Add((f.GetContainerPos(target).X >= (f.Size - 1)) ? 'L' : 'R');
+    }
+    for(int i = 0; i < Math.Abs(f.GetContainerPos(target).Y - (target / f.Size)); i++) {
+      processes[0].Add((f.GetContainerPos(target).Y >= (target / f.Size)) ? 'U' : 'D');
+    }
+
+    processes[0].Add('Q');
+
+    var cranePos = new List<(int Y, int X)>();
+    var isGrabbedContainer = new List<bool>();
+    for(int i = 0; i <= 4; i++) {
+      cranePos.Add(f.GetCranePos(i));
+      isGrabbedContainer.Add(f.GetGrabbedContainer(i) != -1);
+    }
+
+    int rCount = 0;
+    foreach(char c in processes[0]) {
+      switch(c) {
+        case 'U':
+          cranePos[0] = (cranePos[0].Y - 1, cranePos[0].X);
+          break;
+        case 'D':
+          cranePos[0] = (cranePos[0].Y + 1, cranePos[0].X);
+          break;
+        case 'L':
+          cranePos[0] = (cranePos[0].Y, cranePos[0].X - 1);
+          break;
+        case 'R':
+          rCount++;
+          cranePos[0] = (cranePos[0].Y, cranePos[0].X + 1);
+          break;
       }
 
-      if(target == -1) {
-        throw new Exception("ターゲットとなるコンテナが見つかりませんでした");
-      }
-
-      var processes = new List<List<char>>();
-      for(int i = 0; i < f.Size; i++) {
-        processes.Add(new List<char>());
-      }
-
-      for(int i = 0; i < Math.Abs(f.GetCranePos(0).Y - f.GetContainerPos(target).Y); i++) {
-        processes[0].Add((f.GetCranePos(0).Y >= f.GetContainerPos(target).Y) ? 'U' : 'D');
-      }
-      for(int i = 0; i < Math.Abs(f.GetCranePos(0).X - f.GetContainerPos(target).X); i++) {
-        processes[0].Add((f.GetCranePos(0).X >= f.GetContainerPos(target).X) ? 'L' : 'R');
-      }
-
-      processes[0].Add('P');
-
-      for(int i = 0; i < Math.Abs(f.GetContainerPos(target).X - (f.Size - 1)); i++) {
-        processes[0].Add((f.GetContainerPos(target).X >= (f.Size - 1)) ? 'L' : 'R');
-      }
-      for(int i = 0; i < Math.Abs(f.GetContainerPos(target).Y - (target / f.Size)); i++) {
-        processes[0].Add((f.GetContainerPos(target).Y >= (target / f.Size)) ? 'U' : 'D');
-      }
-
-      processes[0].Add('Q');
-
-      var cranePos = new List<(int Y, int X)>();
-      var isGrabbedContainer = new List<bool>();
-      for(int i = 0; i <= 4; i++) {
-        cranePos.Add(f.GetCranePos(i));
-        isGrabbedContainer.Add(f.GetGrabbedContainer(i) != -1);
-      }
-
-      int rCount = 0;
-      foreach(char c in processes[0]) {
+      for(int i = 1; i <= 4; i++) {
         switch(c) {
           case 'U':
-            cranePos[0] = (cranePos[0].Y - 1, cranePos[0].X);
+            processes[i].Add('U');
+            cranePos[i] = (cranePos[i].Y - 1, cranePos[i].X);
             break;
           case 'D':
-            cranePos[0] = (cranePos[0].Y + 1, cranePos[0].X);
+            processes[i].Add('D');
+            cranePos[i] = (cranePos[i].Y + 1, cranePos[i].X);
+            break;
+          case 'P':
+            if(cranePos[i].Y == cranePos[0].Y && f.GetContainerID(cranePos[i]) != -1) {
+              processes[i].Add('P');
+              isGrabbedContainer[i] = true;
+            } else {
+              processes[i].Add('.');
+            }
+            break;
+          case 'Q':
+            processes[i].Add('.');
             break;
           case 'L':
-            cranePos[0] = (cranePos[0].Y, cranePos[0].X - 1);
+            if(cranePos[i].Y == cranePos[0].Y) {
+              if(cranePos[i].X == 0) {
+                switch(cranePos[i].Y) {
+                  case 0:
+                    processes[i].Add('D');
+                    cranePos[i] = (cranePos[i].Y + 1, cranePos[i].X);
+                    break;
+                  case 4:
+                    processes[i].Add('U');
+                    cranePos[i] = (cranePos[i].Y - 1, cranePos[i].X);
+                    break;
+                  default:
+                    int u = 0;
+                    int d = 0;
+                    for(int x = 0; x <= f.Size - 2; x++) {
+                      if(f.GetContainerID((cranePos[i].Y - 1, x)) != -1) u++;
+                      if(f.GetContainerID((cranePos[i].Y + 1, x)) != -1) d++;
+                    }
+                    if(u >= d) {
+                      processes[i].Add('U');
+                      cranePos[i] = (cranePos[i].Y - 1, cranePos[i].X);
+                    } else {
+                      processes[i].Add('D');
+                      cranePos[i] = (cranePos[i].Y + 1, cranePos[i].X);
+                    }
+                    break;
+                }
+              } else {
+                processes[i].Add('L');
+                cranePos[i] = (cranePos[i].Y, cranePos[i].X - 1);
+              }
+            } else {
+              processes[i].Add('R');
+              cranePos[i] = (cranePos[i].Y, cranePos[i].X + 1);
+            }
             break;
           case 'R':
-            rCount++;
-            cranePos[0] = (cranePos[0].Y, cranePos[0].X + 1);
-            break;
-        }
+            switch(processes[i][processes[i].Count - (rCount * 2 + (rCount >= 2 ? 1 : 0))]) {
+              case 'U':
+                processes[i].Add('D');
+                cranePos[i] = (cranePos[i].Y + 1, cranePos[i].X);
+                break;
+              case 'D':
+                processes[i].Add('U');
+                cranePos[i] = (cranePos[i].Y - 1, cranePos[i].X);
+                break;
+              case 'L':
+                processes[i].Add('R');
+                cranePos[i] = (cranePos[i].Y, cranePos[i].X + 1);
+                break;
+              case 'R':
+                processes[i].Add('L');
+                cranePos[i] = (cranePos[i].Y, cranePos[i].X - 1);
+                break;
+            }
 
-        for(int i = 1; i <= 4; i++) {
-          switch(c) {
-            case 'U':
-              processes[i].Add('U');
-              cranePos[i] = (cranePos[i].Y - 1, cranePos[i].X);
-              break;
-            case 'D':
-              processes[i].Add('D');
-              cranePos[i] = (cranePos[i].Y + 1, cranePos[i].X);
-              break;
-            case 'P':
-              if(cranePos[i].Y == cranePos[0].Y && f.GetContainerID(cranePos[i]) != -1) {
-                processes[i].Add('P');
-                isGrabbedContainer[i] = true;
+            if(rCount == 1) {
+              if(isGrabbedContainer[i]) {
+                processes[i].Add('Q');
+                isGrabbedContainer[i] = false;
               } else {
                 processes[i].Add('.');
               }
-              break;
-            case 'Q':
-              processes[i].Add('.');
-              break;
-            case 'L':
-              if(cranePos[i].Y == cranePos[0].Y) {
-                if(cranePos[i].X == 0) {
-                  switch(cranePos[i].Y) {
-                    case 0:
-                      processes[i].Add('D');
-                      cranePos[i] = (cranePos[i].Y + 1, cranePos[i].X);
-                      break;
-                    case 4:
-                      processes[i].Add('U');
-                      cranePos[i] = (cranePos[i].Y - 1, cranePos[i].X);
-                      break;
-                    default:
-                      int u = 0;
-                      int d = 0;
-                      for(int x = 0; x <= f.Size - 2; x++) {
-                        if(f.GetContainerID((cranePos[i].Y - 1, x)) != -1) u++;
-                        if(f.GetContainerID((cranePos[i].Y + 1, x)) != -1) d++;
-                      }
-                      if(u >= d) {
-                        processes[i].Add('U');
-                        cranePos[i] = (cranePos[i].Y - 1, cranePos[i].X);
-                      } else {
-                        processes[i].Add('D');
-                        cranePos[i] = (cranePos[i].Y + 1, cranePos[i].X);
-                      }
-                      break;
-                  }
-                } else {
-                  processes[i].Add('L');
-                  cranePos[i] = (cranePos[i].Y, cranePos[i].X - 1);
-                }
-              } else {
-                processes[i].Add('R');
-                cranePos[i] = (cranePos[i].Y, cranePos[i].X + 1);
-              }
-              break;
-            case 'R':
-              switch(processes[i][processes[i].Count - (rCount * 2 + (rCount >= 2 ? 1 : 0))]) {
-                case 'U':
-                  processes[i].Add('D');
-                  cranePos[i] = (cranePos[i].Y + 1, cranePos[i].X);
-                  break;
-                case 'D':
-                  processes[i].Add('U');
-                  cranePos[i] = (cranePos[i].Y - 1, cranePos[i].X);
-                  break;
-                case 'L':
-                  processes[i].Add('R');
-                  cranePos[i] = (cranePos[i].Y, cranePos[i].X + 1);
-                  break;
-                case 'R':
-                  processes[i].Add('L');
-                  cranePos[i] = (cranePos[i].Y, cranePos[i].X - 1);
-                  break;
-              }
-
-              if(rCount == 1) {
-                if(isGrabbedContainer[i]) {
-                  processes[i].Add('Q');
-                  isGrabbedContainer[i] = false;
-                } else {
-                  processes[i].Add('.');
-                }
-              }
-              break;
-          }
+            }
+            break;
         }
       }
-
-      f.Operate(processes);
-      // WriteLine(f.GetAnswer()); // debug
-      // break; // debug
     }
+
+    f.Operate(processes);
+    // WriteLine(f.GetAnswer()); // debug
+    return true;
   }
 
   public static int Main(string[] args) {
@@ -677,7 +677,7 @@ public class MainClass
 
     var f = new Field(n, a);
     Pack(ref f);
-    Tidy(ref f);
+    while(Tidy(ref f));
     WriteLine(f.GetAnswer());
 
     return 0;
