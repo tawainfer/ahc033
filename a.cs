@@ -105,16 +105,6 @@ public class Field {
   }
 
   public (int Ready, int Field, int Done, int All) GetContainerCount() {
-    int field = 0;
-    for(int i = 0; i < _size * _size; i++) {
-      try {
-        GetCranePos(i);
-        field++;
-      } catch(Exception) {
-        // pass
-      }
-    }
-
     int ready = 0;
     for(int i = 0; i < _ready.Count; i++) {
       foreach(int x in _ready[i]) {
@@ -122,7 +112,14 @@ public class Field {
       }
     }
 
-    int done = _size * _size - ready - field;
+    int done = 0;
+    for(int i = 0; i < _done.Count; i++) {
+      foreach(int x in _done[i]) {
+        done++;
+      }
+    }
+
+    int field = _size * _size - ready - done;
     return (ready, field, done, _size * _size);
   }
 
@@ -163,12 +160,6 @@ public class Field {
   }
 
   public (int Y, int X) GetContainerPos(int id) {
-    // for(int i = 0; i < _size; i++) {
-    //   if(_grabbedContainer[i] == id) {
-    //     return GetCranePos(i);
-    //   }
-    // }
-
     for(int i = 0; i < _size; i++) {
       for(int j = 0; j < _size; j++) {
         if(_containerMap[i][j] == id) {
@@ -203,34 +194,12 @@ public class Field {
     //   throw new Exception($"クレーン{id}がクレーン{_craneMap[ey][ex]}と衝突しました");
     // }
 
-    // debug
-    // WriteLine("_grabbedContainer");
-    // for(int i = 0; i < _size; i++) {
-    //   Write($"{_grabbedContainer[i]} ");
-    // }
-    // WriteLine();
-    // WriteLine("_containerMap");
-    // for(int i = 0; i < _size; i++) {
-    //   for(int j = 0; j < _size; j++) {
-    //     Write(_containerMap[i][j].ToString().PadLeft(3));
-    //   }
-    //   WriteLine();
-    // }
-
     if(id != 0 && _grabbedContainer[id] != -1 && _containerMap[ey][ex] != -1) {
       throw new Exception($"小クレーン{id}はコンテナを掴んだ状態で別のコンテナが存在するマスに移動出来ません");
     }
 
     afterCraneMap[ey][ex] = id;
     // afterCraneMap[cy][cx] = -1;
-
-    // debug
-    // for(int i = 0; i < _size; i++) {
-    //   for(int j = 0; j < _size; j++) {
-    //     Write(afterCraneMap[i][j].ToString().PadLeft(3));
-    //   }
-    //   WriteLine();
-    // }
 
     // if(cx == 0 && _grabbedContainer[id] != -1 && _ready[cy].Count >= 1) {
     //   CarryIn(cy);
@@ -415,8 +384,17 @@ public class Field {
       }
       CarryOut();
 
+      int periodCount = 0;
       for(int i = 0; i < _size; i++) {
-        _processes[i].Add(processes[i][t]);
+        if(processes[i][t] == '.') {
+          periodCount++;
+        }
+      }
+
+      if(periodCount != _size) {
+        for(int i = 0; i < _size; i++) {
+          _processes[i].Add(processes[i][t]);
+        }
       }
 
       // debug
@@ -606,7 +584,7 @@ public class MainClass
               cranePos[i] = (cranePos[i].Y + 1, cranePos[i].X);
               break;
             case 'P':
-              if(f.GetContainerID(cranePos[i]) != -1) {
+              if(cranePos[i].Y == cranePos[0].Y && f.GetContainerID(cranePos[i]) != -1) {
                 processes[i].Add('P');
                 isGrabbedContainer[i] = true;
               } else {
@@ -684,99 +662,13 @@ public class MainClass
               break;
           }
         }
-
-        // debug
-        // for(int i = 0; i < f.Size; i++) {
-        //   Write($"{cranePos[i]} ");
-        // }
-        // WriteLine();
-      }
-
-      for(int i = 0; i < f.Size; i++) {
-        foreach(char c in processes[i]) {
-          Write(c);
-        }
-        WriteLine();
       }
 
       f.Operate(processes);
-      WriteLine(f.GetAnswer()); // debug
+      // WriteLine(f.GetAnswer()); // debug
       // break; // debug
     }
   }
-
-  // public static void Tidy(ref Field f) {
-  //   int cnt = 0; // debug
-  //   while(f.GetContainerCount().Done < f.GetContainerCount().All) {
-  //     cnt++; // debug
-  //     var processes = new List<List<char>>();
-  //     for(int i = 0; i < f.Size; i++) {
-  //       processes.Add(new List<char>());
-  //     }
-
-  //     var targets = new HashSet<int>();
-  //     for(int j = 0; j < f.Size; j++) {
-  //       targets.Add(f.GetNextCarryOutContainer(j));
-  //     }
-  //     if(targets.Contains(-1)) targets.Remove(-1);
-
-  //     for(int i = 0; i < f.Size; i++) {
-  //       (int cy, int cx) = f.GetCranePos(i);
-  //       if(i == 0) {
-  //         if(f.GetGrabbedContainer(0) != -1) {
-  //           if(cx == f.Size - 1) {
-  //             if(cy == f.GetGrabbedContainer(0) / f.Size) {
-  //               processes[0].Add('Q');
-  //             } else {
-  //               processes[0].Add((cy >= f.GetGrabbedContainer(0) / f.Size ? 'U' : 'L'));
-  //             }
-  //           } else if(cx == f.Size - 2) {
-  //             processes[0].Add('R');
-  //           } else {
-  //             throw new Exception("クレーン0が想定外の動作をしています");
-  //           }
-  //         } else if(cx == f.Size - 1) {
-  //           if(targets.Contains(f.GetContainerID((cy, cx - 1)))) {
-  //             processes[0].Add('L');
-  //           } else {
-  //             bool isTarget = false;
-  //             for(int j = 1; j <= 4; j++) {
-  //               try {
-  //                 if(targets.Contains(f.GetContainerID((cy - j, cx - 1)))) {
-  //                   isTarget = true;
-  //                   processes[0].Add('U');
-  //                   break;
-  //                 }
-  //               } catch(Exception) {
-  //                 // pass
-  //               }
-  //               try {
-  //                 if(targets.Contains(f.GetContainerID((cy + j, cx - 1)))) {
-  //                   isTarget = true;
-  //                   processes[0].Add('D');
-  //                   break;
-  //                 }
-  //               } catch(Exception) {
-  //                 // pass
-  //               }
-  //             }
-
-  //             if(!isTarget) {
-  //               processes[0].Add('.');
-  //             }
-  //           }
-  //         } else if(cx == f.Size - 2) {
-  //           processes[0].Add((targets.Contains(f.GetContainerID((cy, cx))) ? 'P' : 'R'));
-  //         }
-  //       } else {
-  //         // 回転クレーンの処理
-  //       }
-  //     }
-
-  //     f.Operate(processes);
-  //     if(cnt >= 20) break; // debug
-  //   }
-  // }
 
   public static int Main(string[] args) {
     int n = -1;
@@ -785,11 +677,7 @@ public class MainClass
 
     var f = new Field(n, a);
     Pack(ref f);
-    // WriteLine(f.ToString());
-    // WriteLine(f.GetAnswer());
-
     Tidy(ref f);
-    // WriteLine(f.ToString());
     WriteLine(f.GetAnswer());
 
     return 0;
