@@ -4,6 +4,19 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using static System.Console;
 
+public static class Extensions {
+  private static Random r = new Random();
+
+  public static void Shuffle<T>(this IList<T> list) {
+    for (int i = list.Count - 1; i > 0; i--) {
+      int j = r.Next(0, i + 1);
+      var tmp = list[i];
+      list[i] = list[j];
+      list[j] = tmp;
+    }
+  }
+}
+
 public static class DeepCopy {
   public static T Clone<T>(T obj) {
     string json = JsonConvert.SerializeObject(obj);
@@ -21,6 +34,20 @@ public class Field {
   private List<int> _grabbedContainer = new List<int>();
   private List<List<int>> _ready = new List<List<int>>();
   private List<List<int>> _done = new List<List<int>>();
+
+  private Field(Field parent) {
+    this._size = parent._size;
+    this._processes = DeepCopy.Clone(parent._processes);
+    this._craneMap = DeepCopy.Clone(parent._craneMap);
+    this._containerMap = DeepCopy.Clone(parent._containerMap);
+    this._grabbedContainer = DeepCopy.Clone(parent._grabbedContainer);
+    this._ready = DeepCopy.Clone(parent._ready);
+    this._done = DeepCopy.Clone(parent._done);
+  }
+
+  public Field Clone() {
+    return new Field(this);
+  }
 
   public Field(int size, List<List<int>> ready) {
     _size = size;
@@ -474,8 +501,7 @@ public class Field {
   }
 }
 
-public class MainClass
-{
+public class MainClass {
   public static void Input(ref int n, ref List<List<int>> a) {
     n = int.Parse(ReadLine());
     for(int i = 0; i < n; i++) {
@@ -502,13 +528,17 @@ public class MainClass
     f.Operate(processes);
   }
 
-  public static bool Tidy(ref Field f) {
+  public static bool Tidy(ref Field f, List<int> order = null) {
     if(f.GetContainerCount().Done >= f.GetContainerCount().All) return false;
+
+    if(order is null) {
+      order = Enumerable.Range(0, f.Size).ToList();
+    }
 
     int target = -1;
     int min_distance = int.MaxValue;
 
-    for(int i = 0; i < f.Size; i++) {
+    foreach(int i in order) {
       int t = f.GetNextCarryOutContainer(i);
       if(t == -1) continue;
 
@@ -677,9 +707,22 @@ public class MainClass
 
     var f = new Field(n, a);
     Pack(ref f);
-    while(Tidy(ref f));
-    WriteLine(f.GetAnswer());
 
+    Field ans = null;
+    var order = Enumerable.Range(0, f.Size).ToList();
+
+    for(int i = 0; i < 100; i++) {
+      var f2 = f.Clone();
+      while(Tidy(ref f2, order)) order.Shuffle();
+
+      int ct = (ans is null ? int.MaxValue : ans.Turn);
+      if(f2.Turn < ct) {
+        ans = f2;
+      }
+    }
+
+    WriteLine(ans.GetAnswer());
+    // WriteLine(ans.Turn);
     return 0;
   }
 }
