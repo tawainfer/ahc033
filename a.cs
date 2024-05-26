@@ -519,11 +519,11 @@ public class MainClass {
     for(int i = 0; i < f.Size; i++) {
       processes.Add(new List<char>());
     }
-    processes[0].AddRange("PRQLPRRQLLPRRRQRDDD.");
-    processes[1].AddRange("PRRRQLLLPRRQLLPRQDD");
-    processes[2].AddRange("PRRRQLLLPRRQLLPRQLD");
-    processes[3].AddRange("PRRRQLLLPRRQLLPRQRR");
-    processes[4].AddRange("PRRRQLLLPRRQLLPRQUR");
+    processes[0].AddRange("PRQLPRRQLLPRRRQRDD");
+    processes[1].AddRange("PRRRQLLLPRRQLLPRQD");
+    processes[2].AddRange("PRRRQLLLPRRQLLPRQR");
+    processes[3].AddRange("PRRRQLLLPRRQLLPRQR");
+    processes[4].AddRange("PRRRQLLLPRRQLLPRQU");
 
     f.Operate(processes);
   }
@@ -708,16 +708,57 @@ public class MainClass {
     var f = new Field(n, a);
     Pack(ref f);
 
+    var ff = new List<Field>();
+    List<List<char>> processes;
+    for(int i = 0; i < 3; i++) {
+      ff.Add(f.Clone());
+      processes = new List<List<char>>();
+      for(int _ = 0; _ < f.Size; _++) {
+        processes.Add(new List<char>());
+      }
+
+      processes[0].AddRange(i switch {
+        0 => ".",
+        1 => "...",
+        2 => "...",
+      });
+      processes[1].AddRange(i switch {
+        0 => "L",
+        1 => "PDQU",
+        2 => "PRQR",
+      });
+      processes[2].AddRange(i switch {
+        0 => "R",
+        1 => "PLQL",
+        2 => "PDQU",
+      });
+      processes[3].AddRange(i switch {
+        0 => "U",
+        1 => "PUQR",
+        2 => "PLQU",
+      });
+      processes[4].AddRange(i switch {
+        0 => "U",
+        1 => "PRQU",
+        2 => "PUQL",
+      });
+
+      ff[i].Operate(processes);
+    }
+
     Field ans = null;
     var order = Enumerable.Range(0, f.Size).ToList();
 
-    for(int i = 0; i < 100; i++) {
-      var f2 = f.Clone();
-      while(Tidy(ref f2, order)) order.Shuffle();
+    for(int i = 0; i < ff.Count; i++) {
+      for(int j = 0; j < 30; j++) {
+        var fff = ff[i].Clone();
+        int cnt = 0;
+        while(Tidy(ref fff, order)) order.Shuffle();
 
-      int ct = (ans is null ? int.MaxValue : ans.Turn);
-      if(f2.Turn < ct) {
-        ans = f2;
+        int ct = (ans is null ? int.MaxValue : ans.Turn);
+        if(fff.Turn < ct) {
+          ans = fff;
+        }
       }
     }
 
