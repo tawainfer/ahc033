@@ -710,7 +710,7 @@ public class MainClass {
 
     var ff = new List<Field>();
     List<List<char>> processes;
-    for(int i = 0; i < 3; i++) {
+    for(int i = 0; i < 12; i++) {
       ff.Add(f.Clone());
       processes = new List<List<char>>();
       for(int _ = 0; _ < f.Size; _++) {
@@ -721,26 +721,71 @@ public class MainClass {
         0 => ".",
         1 => "...",
         2 => "...",
+        3 => "U",
+        4 => "U",
+        5 => "U",
+        6 => "UU",
+        7 => "UU",
+        8 => "UU",
+        9 => "D",
+        10 => "D",
+        11 => "D",
       });
       processes[1].AddRange(i switch {
         0 => "L",
         1 => "PDQU",
         2 => "PRQR",
+        3 => "UL",
+        4 => "UPDQU",
+        5 => "UPRQR",
+        6 => "UUL",
+        7 => "UUPDQU",
+        8 => "UUPRQR",
+        9 => "DL",
+        10 => "DPDQU",
+        11 => "DPRQR",
       });
       processes[2].AddRange(i switch {
         0 => "R",
         1 => "PLQL",
         2 => "PDQU",
+        3 => "UR",
+        4 => "UPLQL",
+        5 => "UPDQU",
+        6 => "UUR",
+        7 => "UUPLQL",
+        8 => "UUPDQU",
+        9 => "DR",
+        10 => "DPLQL",
+        11 => "DPDQU",
       });
       processes[3].AddRange(i switch {
         0 => "U",
         1 => "PUQR",
         2 => "PLQU",
+        3 => "UU",
+        4 => "UPUQR",
+        5 => "UPLQU",
+        6 => "UUU",
+        7 => "UUPUQR",
+        8 => "UUPLQU",
+        9 => "DU",
+        10 => "DPUQR",
+        11 => "DPLQU",
       });
       processes[4].AddRange(i switch {
         0 => "U",
         1 => "PRQU",
         2 => "PUQL",
+        3 => "UU",
+        4 => "UPRQU",
+        5 => "UPUQL",
+        6 => "UUU",
+        7 => "UUPRQU",
+        8 => "UUPUQL",
+        9 => "DU",
+        10 => "DPRQU",
+        11 => "DPUQL",
       });
 
       ff[i].Operate(processes);
@@ -750,13 +795,14 @@ public class MainClass {
     var order = Enumerable.Range(0, f.Size).ToList();
 
     for(int i = 0; i < ff.Count; i++) {
-      for(int j = 0; j < 30; j++) {
+      for(int j = 0; j < 10; j++) {
         var fff = ff[i].Clone();
         int cnt = 0;
         while(Tidy(ref fff, order)) order.Shuffle();
 
         int ct = (ans is null ? int.MaxValue : ans.Turn);
         if(fff.Turn < ct) {
+          // WriteLine($"({i}, {j}) {ct} -> {fff.Turn}");
           ans = fff;
         }
       }
