@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using System.Diagnostics;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using static System.Console;
@@ -701,6 +702,9 @@ public class MainClass {
   }
 
   public static int Main(string[] args) {
+    var stopwatch = Stopwatch.StartNew();
+    var timeout = TimeSpan.FromSeconds(2.9);
+
     int n = -1;
     var a = new List<List<int>>();
     Input(ref n, ref a);
@@ -710,7 +714,7 @@ public class MainClass {
 
     var ff = new List<Field>();
     List<List<char>> processes;
-    for(int i = 0; i < 12; i++) {
+    for(int i = 0; i < 16; i++) {
       ff.Add(f.Clone());
       processes = new List<List<char>>();
       for(int _ = 0; _ < f.Size; _++) {
@@ -730,6 +734,10 @@ public class MainClass {
         9 => "D",
         10 => "D",
         11 => "D",
+        12 => ".",
+        13 => ".",
+        14 => ".",
+        15 => ".",
       });
       processes[1].AddRange(i switch {
         0 => "L",
@@ -744,6 +752,10 @@ public class MainClass {
         9 => "DL",
         10 => "DPDQU",
         11 => "DPRQR",
+        12 => "LPDQUR",
+        13 => "LPRQRR",
+        14 => "RPDQRU",
+        15 => "RPRQLL",
       });
       processes[2].AddRange(i switch {
         0 => "R",
@@ -758,6 +770,10 @@ public class MainClass {
         9 => "DR",
         10 => "DPLQL",
         11 => "DPDQU",
+        12 => "LPLQRR",
+        13 => "LPDQLU",
+        14 => "RPLQLL",
+        15 => "RPDQUL",
       });
       processes[3].AddRange(i switch {
         0 => "U",
@@ -772,6 +788,10 @@ public class MainClass {
         9 => "DU",
         10 => "DPUQR",
         11 => "DPLQU",
+        12 => "LPUQRR",
+        13 => "LPLQUR",
+        14 => "RPUQLL",
+        15 => "RPLQRU",
       });
       processes[4].AddRange(i switch {
         0 => "U",
@@ -786,6 +806,10 @@ public class MainClass {
         9 => "DU",
         10 => "DPRQU",
         11 => "DPUQL",
+        12 => "LPRQLU",
+        13 => "LPUQRR",
+        14 => "RPRQUL",
+        15 => "RPUQLL",
       });
 
       ff[i].Operate(processes);
@@ -794,22 +818,33 @@ public class MainClass {
     Field ans = null;
     var order = Enumerable.Range(0, f.Size).ToList();
 
-    for(int i = 0; i < ff.Count; i++) {
-      for(int j = 0; j < 10; j++) {
-        var fff = ff[i].Clone();
-        int cnt = 0;
+    var costs = new List<int>();
+    for(int i = 0; i < 16; i++) {
+      costs.Add(1);
+    }
+
+    int idx = -1;
+    while(stopwatch.Elapsed <= timeout) {
+      idx = (idx + 1) % costs.Count;
+      for(int j = 0; j < costs[idx]; j++) {
+        if(stopwatch.Elapsed >= timeout) {
+          break;
+        }
+
+        var fff = ff[idx].Clone();
         while(Tidy(ref fff, order)) order.Shuffle();
 
         int ct = (ans is null ? int.MaxValue : ans.Turn);
         if(fff.Turn < ct) {
-          // WriteLine($"({i}, {j}) {ct} -> {fff.Turn}");
+          // WriteLine($"({idx}, {costs[idx]}) {ct} -> {fff.Turn}");
           ans = fff;
+          costs[idx]++;
         }
       }
     }
 
     WriteLine(ans.GetAnswer());
-    // WriteLine(ans.Turn);
+    // WriteLine(ans.Turn); // debug
     return 0;
   }
 }
